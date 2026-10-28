@@ -3683,6 +3683,455 @@ renderNav();
 renderMenu();
 
 </script>
+<script>
+/* ========================================
+   SugaRRY Seller Login Security
+   ใส่โค้ดนี้ก่อน </body>
+======================================== */
+
+const SELLER_PIN = "2580";
+
+/*
+  เก็บสถานะ Login เฉพาะ Tab ปัจจุบัน
+  เมื่อปิด Safari หรือออกจากระบบ
+  ต้องกรอก PIN ใหม่
+*/
+let sellerAuthenticated =
+  sessionStorage.getItem(
+    "sugarry_seller_login"
+  ) === "yes";
+
+
+/* สร้างหน้า Seller Login อัตโนมัติ */
+function createSellerLoginPage() {
+
+  if (
+    document.getElementById(
+      "sellerLogin"
+    )
+  ) {
+    return;
+  }
+
+  const sellerSection =
+    document.createElement("section");
+
+  sellerSection.id = "sellerLogin";
+  sellerSection.className = "screen";
+
+  sellerSection.innerHTML = `
+
+    <h2>🔐 Seller Login</h2>
+
+    <div class="card">
+
+      <div
+        style="
+          text-align:center;
+          font-size:55px;
+          margin-bottom:10px;
+        "
+      >
+        ☕
+      </div>
+
+      <h2 style="text-align:center;">
+        SugaRRY Seller
+      </h2>
+
+      <p
+        class="muted"
+        style="text-align:center;"
+      >
+        สำหรับเจ้าของร้านเท่านั้น
+      </p>
+
+      <div class="sectionTitle">
+        Seller PIN
+      </div>
+
+      <input
+        id="sellerPin"
+        class="input"
+        type="password"
+        inputmode="numeric"
+        pattern="[0-9]*"
+        maxlength="6"
+        autocomplete="off"
+        placeholder="กรอก PIN"
+        onkeydown="
+          if(event.key === 'Enter'){
+            sellerLogin();
+          }
+        "
+      >
+
+      <button
+        class="btn"
+        onclick="sellerLogin()"
+      >
+        Login → Dashboard
+      </button>
+
+      <p
+        id="sellerLoginError"
+        class="warning hidden"
+      >
+        PIN ไม่ถูกต้อง กรุณาลองอีกครั้ง
+      </p>
+
+      <button
+        class="btn secondary"
+        onclick="showScreen('menu')"
+      >
+        ← กลับหน้าร้าน
+      </button>
+
+    </div>
+
+  `;
+
+  const main =
+    document.querySelector("main");
+
+  const dashboard =
+    document.getElementById(
+      "dashboard"
+    );
+
+  if (main && dashboard) {
+
+    main.insertBefore(
+      sellerSection,
+      dashboard
+    );
+
+  } else if (main) {
+
+    main.appendChild(
+      sellerSection
+    );
+  }
+}
+
+
+/* ตรวจ PIN */
+function sellerLogin() {
+
+  const pinInput =
+    document.getElementById(
+      "sellerPin"
+    );
+
+  const errorBox =
+    document.getElementById(
+      "sellerLoginError"
+    );
+
+  if (!pinInput) {
+    return;
+  }
+
+  if (
+    pinInput.value === SELLER_PIN
+  ) {
+
+    sellerAuthenticated = true;
+
+    sessionStorage.setItem(
+      "sugarry_seller_login",
+      "yes"
+    );
+
+    pinInput.value = "";
+
+    if (errorBox) {
+      errorBox.classList.add(
+        "hidden"
+      );
+    }
+
+    showScreen("dashboard");
+
+    return;
+  }
+
+  sellerAuthenticated = false;
+
+  sessionStorage.removeItem(
+    "sugarry_seller_login"
+  );
+
+  pinInput.value = "";
+
+  if (errorBox) {
+    errorBox.classList.remove(
+      "hidden"
+    );
+  }
+
+  pinInput.focus();
+}
+
+
+/* ออกจากระบบ Seller */
+function sellerLogout() {
+
+  sellerAuthenticated = false;
+
+  sessionStorage.removeItem(
+    "sugarry_seller_login"
+  );
+
+  showScreen("menu");
+}
+
+
+/*
+  เก็บ showScreen เดิมไว้
+  แล้วเพิ่มระบบตรวจ Login ก่อนเข้า Dashboard
+*/
+const originalShowScreen =
+  window.showScreen;
+
+
+window.showScreen =
+  function(screenId) {
+
+    if (
+      screenId === "dashboard" &&
+      !sellerAuthenticated
+    ) {
+
+      screenId = "sellerLogin";
+    }
+
+    originalShowScreen(screenId);
+
+    if (
+      screenId === "sellerLogin"
+    ) {
+
+      setTimeout(function() {
+
+        const input =
+          document.getElementById(
+            "sellerPin"
+          );
+
+        if (input) {
+          input.focus();
+        }
+
+      }, 100);
+    }
+
+    if (
+      screenId === "dashboard" &&
+      sellerAuthenticated
+    ) {
+
+      addSellerLogoutButton();
+    }
+  };
+
+
+/* เพิ่มปุ่ม Logout ด้านบน Dashboard */
+function addSellerLogoutButton() {
+
+  const dashboardBox =
+    document.getElementById(
+      "dashboardBox"
+    );
+
+  if (!dashboardBox) {
+    return;
+  }
+
+  if (
+    document.getElementById(
+      "sellerLogoutButton"
+    )
+  ) {
+    return;
+  }
+
+  const logoutButton =
+    document.createElement("button");
+
+  logoutButton.id =
+    "sellerLogoutButton";
+
+  logoutButton.className =
+    "btn secondary";
+
+  logoutButton.textContent =
+    "🔒 Logout Seller";
+
+  logoutButton.onclick =
+    sellerLogout;
+
+  dashboardBox.insertBefore(
+    logoutButton,
+    dashboardBox.firstChild
+  );
+}
+
+
+/*
+  แก้ Navigation
+  ไม่แสดง Dashboard ตรง ๆ
+  เปลี่ยนเป็นปุ่ม Seller
+*/
+function renderSecureNavigation() {
+
+  const nav =
+    document.getElementById(
+      "nav"
+    );
+
+  if (!nav) {
+    return;
+  }
+
+  const cartCount =
+    Array.isArray(window.cart)
+      ? window.cart.reduce(
+          function(sum, item) {
+            return sum +
+              Number(item.qty || 0);
+          },
+          0
+        )
+      : 0;
+
+  nav.innerHTML = `
+
+    <button
+      class="tab"
+      data-id="menu"
+      onclick="showScreen('menu')"
+    >
+      Menu
+    </button>
+
+    <button
+      class="tab"
+      data-id="cart"
+      onclick="showScreen('cart')"
+    >
+      Cart
+    </button>
+
+    <button
+      class="tab"
+      data-id="payment"
+      onclick="showScreen('payment')"
+    >
+      Payment
+    </button>
+
+    <button
+      class="tab"
+      data-id="orders"
+      onclick="showScreen('orders')"
+    >
+      Orders
+    </button>
+
+    <button
+      class="tab"
+      data-id="sellerLogin"
+      onclick="
+        ${
+          sellerAuthenticated
+            ? "showScreen('dashboard')"
+            : "showScreen('sellerLogin')"
+        }
+      "
+    >
+      ${
+        sellerAuthenticated
+          ? "📊 Dashboard"
+          : "🔐 Seller"
+      }
+    </button>
+
+  `;
+}
+
+
+/*
+  หลังหน้าเว็บโหลดเสร็จ
+  สร้าง Login และเปลี่ยน Navigation
+*/
+createSellerLoginPage();
+
+renderSecureNavigation();
+
+
+/*
+  อัปเดตเมนูเมื่อ Cart เปลี่ยน
+  โดยครอบฟังก์ชัน saveData เดิม
+*/
+if (
+  typeof window.saveData ===
+  "function"
+) {
+
+  const originalSaveData =
+    window.saveData;
+
+  window.saveData =
+    function() {
+
+      originalSaveData();
+
+      renderSecureNavigation();
+    };
+}
+
+
+/*
+  ถ้าผู้ใช้พยายามเปิด Dashboard
+  จากลิงก์หรือคำสั่งอื่นโดยไม่ Login
+  ให้ส่งกลับหน้า Seller Login
+*/
+const dashboardObserver =
+  new MutationObserver(
+    function() {
+
+      const dashboard =
+        document.getElementById(
+          "dashboard"
+        );
+
+      if (
+        dashboard &&
+        dashboard.classList.contains(
+          "active"
+        ) &&
+        !sellerAuthenticated
+      ) {
+
+        originalShowScreen(
+          "sellerLogin"
+        );
+      }
+    }
+  );
+
+
+dashboardObserver.observe(
+  document.body,
+  {
+    attributes: true,
+    subtree: true,
+    attributeFilter: ["class"]
+  }
+);
+
+</script>
 
 </body>
 </html>
